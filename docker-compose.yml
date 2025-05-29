@@ -1,0 +1,56 @@
+services:
+  master_db:
+    build:
+      context: ./master_slave_replication/master
+      dockerfile: Dockerfile
+    container_name: master_db
+    hostname: master_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./master_slave_replication/master/data:/var/lib/postgresql/data
+    command: postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
+  
+  slave_db:
+    build:
+      context: ./master_slave_replication/slave
+      dockerfile: Dockerfile
+    container_name: slave_db
+    hostname: slave_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REPLICATOR_USER: ${REPLICATOR_USER}
+      REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
+      MASTER_HOST: master_db
+    depends_on:
+      - master_db
+    volumes:
+      - ./master_slave_replication/slave/data:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: api
+    hostname: api
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REPLICATOR_USER: ${REPLICATOR_USER}
+      REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
+      MASTER_DB_HOST: master_db
+      MASTER_DB_PORT: 5432
+    ports:
+      - "5000:8000"
+    depends_on:
+      - master_db
+      - slave_db
+    volumes:
+      - ./api:/app
+
+  

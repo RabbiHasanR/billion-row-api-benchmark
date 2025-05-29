@@ -23,5 +23,6 @@ touch /var/lib/postgresql/data/standby.signal
 chown -R postgres:postgres /var/lib/postgresql/data
 chmod 700 /var/lib/postgresql/data
 
-# Start postgres as the 'postgres' user (not root!)
 exec gosu postgres postgres -c config_file=/etc/postgresql/postgresql.conf
+
+echo "✅ Slave initialized. Ready to start."

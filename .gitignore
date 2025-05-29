@@ -1,1 +1,27 @@
+# Ignore environment variable files
+.env
+
 api/env/
+master_slave_replication/master/data/
+master_slave_replication/slave/data/
+
+
+# Ignore Docker-related artifacts
+*.log
+*.pid
+*.sock
+
+# Ignore OS/system junk
+.DS_Store
+Thumbs.db
+
+# Ignore IDE/editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+
+# Ignore backup files
+*~
+*.orig

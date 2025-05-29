@@ -18,7 +18,7 @@ ENV PATH=/root/.local/bin:$PATH
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y netcat-openbsd curl && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libpq-dev gcc netcat-openbsd curl && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /root/.local /root/.local
 COPY . /app/
@@ -26,6 +26,11 @@ COPY . /app/
 RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
+
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # CMD ["gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:8000"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
