@@ -31,6 +31,12 @@ services:
     volumes:
       - ./master_slave_replication/slave/data:/var/lib/postgresql/data
 
+  
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    hostname: redis
+
   api:
     build:
       context: ./api
@@ -45,12 +51,40 @@ services:
       REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
       MASTER_DB_HOST: master_db
       MASTER_DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
     ports:
       - "5000:8000"
     depends_on:
       - master_db
       - slave_db
+      - redis
     volumes:
       - ./api:/app
 
+
+  celery:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: celery
+    hostname: celery
+    command: celery -A main worker --loglevel=info
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REPLICATOR_USER: ${REPLICATOR_USER}
+      REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
+      MASTER_DB_HOST: master_db
+      MASTER_DB_PORT: 5432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./api:/app
+    depends_on:
+      - redis
+      - api
+      - master_db
+      - slave_db
   
