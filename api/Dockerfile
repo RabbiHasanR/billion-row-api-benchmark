@@ -27,10 +27,10 @@ RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+# COPY entrypoint.sh /app/entrypoint.sh
+# RUN chmod +x /app/entrypoint.sh
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+# ENTRYPOINT ["/app/entrypoint.sh"]
 
 # CMD ["gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:8000"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

@@ -1,27 +1,27 @@
-from celery_config.celery import app
-from utils.db import copy_to_db, get_max_id
+from celery import shared_task
+from utils.db import copy_to_db, get_max_id, get_db_connection
 from utils.random_data import generate_customers, generate_products, generate_purchases
 
-@app.task
-def insert_customers(batch_size=100000):
-    rows = list(generate_customers(batch_size))
+@shared_task
+def insert_customers(total_customers):
+    rows = list(generate_customers(total_customers))
+    print(f"[insert_customers] Generated {len(rows)} rows")
     copy_to_db('customers', rows, ('name', 'email', 'country', 'created_at'))
-    return f"Inserted {batch_size} customers"
+    return f"Inserted {len(rows)} customers"
 
-@app.task
-def insert_products(batch_size=100000):
-    rows = list(generate_products(batch_size))
+@shared_task
+def insert_products(total_products):
+    rows = list(generate_products(total_products))
+    print(f"[insert_products] Generated {len(rows)} rows")
     copy_to_db('products', rows, ('name', 'category', 'price', 'created_at'))
-    return f"Inserted {batch_size} products"
+    return f"Inserted {len(rows)} products"
 
-@app.task
-def insert_purchases(batch_size=100_000):
-    customer_id_max = get_max_id('customers')
-    product_id_max = get_max_id('products')
-
-    rows = list(generate_purchases(batch_size, customer_id_max, product_id_max))
+@shared_task
+def insert_purchases(total_purchases):
+    rows = list(generate_purchases(total_purchases))
+    print(f"[insert_purchases] Generated {len(rows)} rows")
     copy_to_db('purchases', rows, (
         'customer_id', 'product_id', 'quantity', 'total_price',
         'purchase_time', 'region', 'payment_mode', 'status'
     ))
-    return f"Inserted {batch_size} purchases referencing customer_id <= {customer_id_max}, product_id <= {product_id_max}"
+    return f"Inserted {len(rows)} purchases"

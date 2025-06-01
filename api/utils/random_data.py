@@ -2,6 +2,7 @@ import random
 from faker import Faker
 from datetime import datetime, timezone
 import uuid
+from .db import get_max_id
 
 faker = Faker()
 
@@ -28,18 +29,20 @@ def generate_products(batch_size):
             faker.date_time_this_decade()
         )
 
-def generate_purchases(batch_size, customer_id_max_range, product_id_max_range):
+def generate_purchases(batch_size):
     regions = ['North', 'South', 'East', 'West']
     payment_modes = ['Credit Card', 'UPI', 'Cash']
     statuses = ['Completed', 'Pending', 'Failed']
     
+    customer_id_max_range = get_max_id('customers')
+    product_id_max_range = get_max_id('products')
     for _ in range(batch_size):
         yield (
-            random.randint(1, customer_id_max_range),  # customer_id
-            random.randint(1, product_id_max_range),   # product_id
-            random.randint(1, 10),               # quantity
-            round(random.uniform(10, 5000), 2), # total_price
-            faker.date_time_this_decade(),       # purchase_time
+            random.randint(1, customer_id_max_range),
+            random.randint(1, product_id_max_range),
+            random.randint(1, 10),
+            round(random.uniform(10, 5000), 2),
+            faker.date_time_this_decade(),
             random.choice(regions),
             random.choice(payment_modes),
             random.choice(statuses)

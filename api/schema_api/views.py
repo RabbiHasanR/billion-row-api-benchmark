@@ -76,60 +76,51 @@ class SchemaExecuteView(APIView):
 class InsertDataView(APIView):
     def post(self, request):
         try:
-            # Parse request parameters
-            batch_size = int(request.data.get('batch_size', 100_000))
             total_customers = int(request.data.get('total_customers', 1_000_000))
+            # total_customers = int(request.data.get('total_customers', 1_000))
             total_products = int(request.data.get('total_products', 100_000))
+            # total_products = int(request.data.get('total_products', 100))
             total_purchases = int(request.data.get('total_purchases', 5_000_000))
             insert_stage = request.data.get('stage', 'all')
 
-            # Prepare customer tasks
-            customer_tasks = []
-            if insert_stage in ['customers', 'all']:
-                num_batches = ceil(total_customers / batch_size)
-                customer_tasks = [
-                    insert_customers.si(batch_size=batch_size) for _ in range(num_batches)
-                ]
+            # logger.info(f"Received data insert request: {insert_stage}, customers={total_customers}, products={total_products}")
 
-            # Prepare product tasks
-            product_tasks = []
-            if insert_stage in ['products', 'all']:
-                num_batches = ceil(total_products / batch_size)
-                product_tasks = [
-                    insert_products.si(batch_size=batch_size) for _ in range(num_batches)
-                ]
-            # Prepare purchase tasks
-            purchase_tasks = []
-            if insert_stage in ['purchases', 'all']:
-                num_batches = ceil(total_purchases / batch_size)
-                purchase_tasks = [
-                    insert_purchases.si(
-                        batch_size=batch_size
-                    ) for _ in range(num_batches)
-                ]
+            workflow = None
 
-            # Build final task execution order: customers -> products -> purchases
-            task_sequence = []
-            if customer_tasks:
-                task_sequence.append(group(customer_tasks))
-            if product_tasks:
-                task_sequence.append(group(product_tasks))
-            if purchase_tasks:
-                task_sequence.append(group(purchase_tasks))
+            if insert_stage == 'all':
+                # Customers + Products in parallel, then purchases
+                parallel_tasks = group(
+                    insert_customers.s(total_customers),
+                    insert_products.s(total_products)
+                )
+                workflow = chain(
+                    parallel_tasks,
+                    insert_purchases.si(total_purchases)
+                ).apply_async()
 
-            # Run tasks in sequence using chain
-            if task_sequence:
-                workflow = chain(*task_sequence).apply_async()
+            elif insert_stage == 'customers':
+                workflow = insert_customers.s(total_customers).apply_async()
+
+            elif insert_stage == 'products':
+                workflow = insert_products.s(total_products).apply_async()
+
+            elif insert_stage == 'purchases':
+                workflow = insert_purchases.s(total_purchases).apply_async()
+
             else:
-                workflow = None
+                return Response({
+                    "status": "failed",
+                    "message": f"Unknown stage: {insert_stage}"
+                }, status=status.HTTP_400_BAD_REQUEST)
 
             return Response({
                 "status": "accepted",
-                "message": f"Started inserting data for stages: {insert_stage}",
+                "message": f"Started inserting data for stage(s): {insert_stage}",
                 "workflow_id": workflow.id if workflow else None
             }, status=status.HTTP_202_ACCEPTED)
 
         except Exception as e:
+            # logger.error(f"InsertDataView error: {e}")
             return Response({
                 "status": "failed",
                 "error": str(e)
