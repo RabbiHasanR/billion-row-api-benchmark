@@ -1,14 +1,10 @@
 from django.urls import path
 from .views import (
-    PurchaseSearchView,
-    SalesTrendView,
-    TopCustomersView,
-    TopSellingProductsView,
+    LatestPurchasesView, 
+    AnalyzeLatestPurchasesView
 )
 
 urlpatterns = [
-    path("purchases/search/", PurchaseSearchView.as_view()),
-    path("analytics/sales-trend/", SalesTrendView.as_view()),
-    path("purchases/top-customers/", TopCustomersView.as_view()),
-    path("products/top-selling/", TopSellingProductsView.as_view()),
+    path("purchases/latest/", LatestPurchasesView.as_view(), name="latest-purchases"),
+    path("purchases/latest/analyze/", AnalyzeLatestPurchasesView.as_view(), name="analyze-latest-purchases"),
 ]
