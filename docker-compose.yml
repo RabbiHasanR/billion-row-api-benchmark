@@ -32,6 +32,25 @@ services:
       - ./master_slave_replication/slave/data:/var/lib/postgresql/data
 
   
+  pgbouncer:
+    build:
+      context: ./pgbouncer
+      dockerfile: Dockerfile
+    container_name: pgbouncer
+    hostname: pgbouncer
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    entrypoint: /etc/pgbouncer/generate_userlist.sh
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+    depends_on:
+      - master_db
+      - slave_db
+
+
+  
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -49,8 +68,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       REPLICATOR_USER: ${REPLICATOR_USER}
       REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
-      MASTER_DB_HOST: master_db
-      MASTER_DB_PORT: 5432
+      # MASTER_DB_HOST: master_db
+      # MASTER_DB_PORT: 5432
+      MASTER_DB_HOST: pgbouncer
+      MASTER_DB_PORT: 6432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     entrypoint: /app/entrypoint.sh
@@ -61,6 +82,7 @@ services:
       - master_db
       - slave_db
       - redis
+      - pgbouncer
     volumes:
       - ./api:/app
 
@@ -89,4 +111,5 @@ services:
       - api
       - master_db
       - slave_db
+      - pgbouncer
   

@@ -8,6 +8,7 @@ cp /etc/postgresql/pg_hba.conf /var/lib/postgresql/data/pg_hba.conf
 # Make sure permissions are correct
 chown postgres:postgres /var/lib/postgresql/data/postgresql.conf /var/lib/postgresql/data/pg_hba.conf
 
+
 # Create replication user if not exists
 psql -U postgres <<-EOSQL
     DO \$\$
@@ -18,3 +19,4 @@ psql -U postgres <<-EOSQL
     END
     \$\$;
 EOSQL
+

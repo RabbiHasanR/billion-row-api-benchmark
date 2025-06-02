@@ -5,3 +5,5 @@ djangorestframework==3.16.0
 celery==5.5.2
 redis==6.2.0
 Faker==37.3.0
+locust==2.37.6
+pandas==2.2.3
