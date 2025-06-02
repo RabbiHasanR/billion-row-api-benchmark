@@ -8,6 +8,9 @@ from django.db import connection
 from rest_framework import status
 from tasks.data_insertion import insert_customers, insert_products, insert_purchases
 from celery import group, chain
+from utils.pg_functions import call_pg_function_json
+
+
 
 class SchemaExecuteView(APIView):
     def post(self, request):
@@ -77,13 +80,10 @@ class InsertDataView(APIView):
     def post(self, request):
         try:
             total_customers = int(request.data.get('total_customers', 1_000_000))
-            # total_customers = int(request.data.get('total_customers', 1_000))
             total_products = int(request.data.get('total_products', 100_000))
-            # total_products = int(request.data.get('total_products', 100))
             total_purchases = int(request.data.get('total_purchases', 5_000_000))
             insert_stage = request.data.get('stage', 'all')
 
-            # logger.info(f"Received data insert request: {insert_stage}, customers={total_customers}, products={total_products}")
 
             workflow = None
 
@@ -120,8 +120,24 @@ class InsertDataView(APIView):
             }, status=status.HTTP_202_ACCEPTED)
 
         except Exception as e:
-            # logger.error(f"InsertDataView error: {e}")
             return Response({
                 "status": "failed",
                 "error": str(e)
             }, status=status.HTTP_400_BAD_REQUEST)
+            
+            
+
+
+
+class MigratePurchasesView(APIView):
+    def post(self, request):
+        try:
+            result = call_pg_function_json("migrate_purchases", {})
+
+            return Response(result, status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({
+                "success": False,
+                "message": f"Migration failed: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

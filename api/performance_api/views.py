@@ -43,3 +43,7 @@ class AnalyzeLatestPurchasesView(APIView):
         }
         result = call_pg_function_json("analyze_latest_purchases", params)
         return Response(result, status=status.HTTP_200_OK if result.get("success", True) else status.HTTP_400_BAD_REQUEST)
+    
+    
+
+
