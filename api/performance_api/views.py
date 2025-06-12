@@ -76,7 +76,7 @@ class LoadTestView(APIView):
                 "--host", api_url,
                 "--headless",
                 "--csv", "load_test_results",
-                "-t", "5s"
+                "-t", "1m"
             ]
             subprocess.run(locust_cmd, check=True)
 

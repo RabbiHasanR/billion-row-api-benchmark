@@ -1,11 +1,14 @@
 FROM edoburu/pgbouncer:latest
 
-# Set working directory
 WORKDIR /etc/pgbouncer
 
-# Copy configuration files
+# Copy files
 COPY pgbouncer.ini /etc/pgbouncer/pgbouncer.ini
-COPY generate_userlist.sh /etc/pgbouncer/generate_userlist.sh
+COPY generate_userlist.sh /usr/local/bin/generate_userlist.sh
 
-# Run PgBouncer with custom config
+# Ensure script is executable
+# RUN chmod +x /usr/local/bin/generate_userlist.sh
+
+# Run userlist generation before starting PgBouncer
+# ENTRYPOINT ["/usr/local/bin/generate_userlist.sh"]
 CMD ["pgbouncer", "/etc/pgbouncer/pgbouncer.ini"]

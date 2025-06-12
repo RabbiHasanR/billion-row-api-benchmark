@@ -81,7 +81,7 @@ class InsertDataView(APIView):
         try:
             total_customers = int(request.data.get('total_customers', 1_000_000))
             total_products = int(request.data.get('total_products', 100_000))
-            total_purchases = int(request.data.get('total_purchases', 5_000_000))
+            total_purchases = int(request.data.get('total_purchases', 10_000_000))
             insert_stage = request.data.get('stage', 'all')
 
 
