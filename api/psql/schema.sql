@@ -17,17 +17,17 @@ CREATE TABLE IF NOT EXISTS products (
 );
 
 -- Create purchases table
-CREATE TABLE IF NOT EXISTS purchases (
-    id BIGSERIAL PRIMARY KEY,
-    customer_id BIGINT REFERENCES customers(id),
-    product_id BIGINT REFERENCES products(id),
-    quantity INT NOT NULL,
-    total_price NUMERIC(12,2),
-    purchase_time TIMESTAMP DEFAULT NOW(),
-    region VARCHAR(100),
-    payment_mode VARCHAR(50),
-    status VARCHAR(50)
-);
+-- CREATE TABLE IF NOT EXISTS purchases (
+--     id BIGSERIAL PRIMARY KEY,
+--     customer_id BIGINT REFERENCES customers(id),
+--     product_id BIGINT REFERENCES products(id),
+--     quantity INT NOT NULL,
+--     total_price NUMERIC(12,2),
+--     purchase_time TIMESTAMP DEFAULT NOW(),
+--     region VARCHAR(100),
+--     payment_mode VARCHAR(50),
+--     status VARCHAR(50)
+-- );
 
 
 
@@ -55,7 +55,7 @@ DECLARE
 BEGIN
     BEGIN
         -- Step 1: Rename old purchases table to backup
-        EXECUTE 'ALTER TABLE purchases RENAME TO purchases_backup';
+        -- EXECUTE 'ALTER TABLE purchases RENAME TO purchases_backup';
 
         -- Step 2: Create new partitioned purchases table
         EXECUTE '
@@ -101,10 +101,10 @@ BEGIN
         EXECUTE 'CREATE INDEX IF NOT EXISTS idx_purchases_west_product_id ON purchases_west (product_id)';
 
         -- Step 5: Directly migrate data into partitioned table
-        EXECUTE '
-            INSERT INTO purchases (id, customer_id, product_id, quantity, total_price, purchase_time, region, payment_mode, status)
-            SELECT id, customer_id, product_id, quantity, total_price, purchase_time, region, payment_mode, status FROM purchases_backup
-        ';
+        -- EXECUTE '
+        --     INSERT INTO purchases (id, customer_id, product_id, quantity, total_price, purchase_time, region, payment_mode, status)
+        --     SELECT id, customer_id, product_id, quantity, total_price, purchase_time, region, payment_mode, status FROM purchases_backup
+        -- ';
 
         -- Step 6: Drop backup table after migration (optional)
         -- EXECUTE 'DROP TABLE purchases_backup';
