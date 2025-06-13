@@ -9,4 +9,6 @@ COPY ./postgresql.conf /etc/postgresql/postgresql.conf
 COPY ./init-slave.sh /usr/local/bin/init-slave.sh
 RUN chmod +x /usr/local/bin/init-slave.sh
 
+EXPOSE 5432
+
 ENTRYPOINT ["/usr/local/bin/init-slave.sh"]

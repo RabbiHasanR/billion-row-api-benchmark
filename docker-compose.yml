@@ -32,12 +32,12 @@ services:
       - ./master_slave_replication/slave/data:/var/lib/postgresql/data
 
   
-  pgbouncer:
+  pgbouncer_master:
     build:
       context: ./pgbouncer
-      dockerfile: Dockerfile
-    container_name: pgbouncer
-    hostname: pgbouncer
+      dockerfile: Dockerfile.pgbouncer_master
+    container_name: pgbouncer_master
+    hostname: pgbouncer_master
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -45,11 +45,49 @@ services:
     # entrypoint: /etc/pgbouncer/generate_userlist.sh
     entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate_userlist.sh && pgbouncer /etc/pgbouncer/pgbouncer.ini"]
     volumes:
-      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+      - ./pgbouncer/pgbouncer_master.ini:/etc/pgbouncer/pgbouncer.ini
     depends_on:
       - master_db
+      # - slave_db
+
+  
+  pgbouncer_slave:
+    build:
+      context: ./pgbouncer
+      dockerfile: Dockerfile.pgbouncer_slave
+    container_name: pgbouncer_slave
+    hostname: pgbouncer_slave
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # entrypoint: /etc/pgbouncer/generate_userlist.sh
+    entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate_userlist.sh && pgbouncer /etc/pgbouncer/pgbouncer.ini"]
+    volumes:
+      - ./pgbouncer/pgbouncer_slave.ini:/etc/pgbouncer/pgbouncer.ini
+    depends_on:
+      # - master_db
       - slave_db
 
+
+  pgpool:
+    build:
+      context: ./pgpool
+      dockerfile: Dockerfile
+    container_name: pgpool
+    hostname: pgpool
+    environment:
+      # You might pass PGPOOL-specific variables here if needed.
+      PGPOOL_USER: ${POSTGRES_USER}
+      PGPOOL_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./pgpool/pgpool.conf:/etc/pgpool-II/pgpool.conf
+      - ./pgpool/pool_hba.conf:/etc/pgpool-II/pool_hba.conf
+    # ports:
+    #   - "9999:9999"  # Use your preferred Pgpool-II port
+    depends_on:
+      - pgbouncer_master
+      - pgbouncer_slave
 
   
   redis:
@@ -71,8 +109,10 @@ services:
       REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
       # MASTER_DB_HOST: master_db
       # MASTER_DB_PORT: 5432
-      MASTER_DB_HOST: pgbouncer
-      MASTER_DB_PORT: 6432
+      # MASTER_DB_HOST: pgbouncer
+      # MASTER_DB_PORT: 6432
+      MASTER_DB_HOST: pgpool
+      MASTER_DB_PORT: 9999
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     entrypoint: /app/entrypoint.sh
@@ -80,10 +120,11 @@ services:
     ports:
       - "5000:8000"
     depends_on:
-      - master_db
-      - slave_db
+      # - master_db
+      # - slave_db
+      # - pgbouncer
+      - pgpool
       - redis
-      - pgbouncer
     volumes:
       - ./api:/app
 
@@ -103,8 +144,10 @@ services:
       REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
       # MASTER_DB_HOST: master_db
       # MASTER_DB_PORT: 5432
-      MASTER_DB_HOST: pgbouncer
-      MASTER_DB_PORT: 6432
+      # MASTER_DB_HOST: pgbouncer
+      # MASTER_DB_PORT: 6432
+      MASTER_DB_HOST: pgpool
+      MASTER_DB_PORT: 9999
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
@@ -112,7 +155,8 @@ services:
     depends_on:
       - redis
       - api
-      - master_db
-      - slave_db
-      - pgbouncer
+      - pgpool
+      # - master_db
+      # - slave_db
+      # - pgbouncer
   
