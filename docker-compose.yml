@@ -77,14 +77,11 @@ services:
     container_name: pgpool
     hostname: pgpool
     environment:
-      # You might pass PGPOOL-specific variables here if needed.
-      PGPOOL_USER: ${POSTGRES_USER}
-      PGPOOL_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./pgpool/pgpool.conf:/etc/pgpool-II/pgpool.conf
       - ./pgpool/pool_hba.conf:/etc/pgpool-II/pool_hba.conf
-    # ports:
-    #   - "9999:9999"  # Use your preferred Pgpool-II port
     depends_on:
       - pgbouncer_master
       - pgbouncer_slave
@@ -109,7 +106,7 @@ services:
       REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
       # MASTER_DB_HOST: master_db
       # MASTER_DB_PORT: 5432
-      # MASTER_DB_HOST: pgbouncer
+      # MASTER_DB_HOST: pgbouncer_slave
       # MASTER_DB_PORT: 6432
       MASTER_DB_HOST: pgpool
       MASTER_DB_PORT: 9999
@@ -144,7 +141,7 @@ services:
       REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
       # MASTER_DB_HOST: master_db
       # MASTER_DB_PORT: 5432
-      # MASTER_DB_HOST: pgbouncer
+      # MASTER_DB_HOST: pgbouncer_slave
       # MASTER_DB_PORT: 6432
       MASTER_DB_HOST: pgpool
       MASTER_DB_PORT: 9999
@@ -160,3 +157,5 @@ services:
       # - slave_db
       # - pgbouncer
   
+
+  # pgbouncer_master
