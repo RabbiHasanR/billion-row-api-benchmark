@@ -108,9 +108,6 @@ services:
       - ./pgpool/pgpool.conf:/usr/local/etc/pgpool.conf
       - ./pgpool/pool_hba.conf:/usr/local/etc/pool_hba.conf
       - ./pgpool/pcp.conf:/usr/local/etc/pcp.conf
-    # depends_on:
-    #   - master_db
-    #   - slave_db
     depends_on:
       master_db:
         condition: service_healthy
@@ -121,6 +118,30 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  
+
+  pgbouncer:
+    build:
+      context: ./pgbouncer
+      dockerfile: Dockerfile
+    container_name: pgbouncer
+    hostname: pgbouncer
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate_userlist.sh && pgbouncer /etc/pgbouncer/pgbouncer.ini"]
+    volumes:
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+    depends_on:
+      pgpool:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ${POSTGRES_USER} -d postgres"]
+      interval: 5s      # Effectively once
+      timeout: 5s
+      retries: 5
 
   
   redis:
@@ -149,8 +170,10 @@ services:
       # MASTER_DB_PORT: 5432
       # MASTER_DB_HOST: pgbouncer_slave
       # MASTER_DB_PORT: 6432
-      MASTER_DB_HOST: pgpool
-      MASTER_DB_PORT: 9999
+      # MASTER_DB_HOST: pgpool
+      # MASTER_DB_PORT: 9999
+      MASTER_DB_HOST: pgbouncer
+      MASTER_DB_PORT: 6432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     entrypoint: /app/entrypoint.sh
@@ -166,7 +189,9 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      pgpool:
+      # pgpool:
+      #   condition: service_healthy
+      pgbouncer:
         condition: service_healthy
       
     volumes:
@@ -190,8 +215,10 @@ services:
       # MASTER_DB_PORT: 5432
       # MASTER_DB_HOST: pgbouncer_slave
       # MASTER_DB_PORT: 6432
-      MASTER_DB_HOST: pgpool
-      MASTER_DB_PORT: 9999
+      # MASTER_DB_HOST: pgpool
+      # MASTER_DB_PORT: 9999
+      MASTER_DB_HOST: pgbouncer
+      MASTER_DB_PORT: 6432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
@@ -213,22 +240,22 @@ services:
   
 
 
-  pgpool_test:
-    image: postgres:15-alpine
-    depends_on:
-      pgpool:
-        condition: service_healthy
-    environment:
-      - PGPASSWORD=postgres
-    volumes:
-    - ./tests:/tests
-    working_dir: /tests
-    command: >
-      sh -c "
-      while ! pg_isready -h pgpool -p 9999; do sleep 2; done;
-      sleep 5;
-      echo '=== TESTING STARTED ===';
-      psql -h pgpool -p 9999 -U postgres -c 'CREATE TABLE IF NOT EXISTS route_test(id SERIAL PRIMARY KEY, node TEXT, query_type TEXT, created_at TIMESTAMPTZ DEFAULT NOW())';
-      chmod +x /tests/run_tests.sh && /tests/run_tests.sh;
-      echo '=== TESTING COMPLETE ===';
-      "
+  # pgpool_test:
+  #   image: postgres:15-alpine
+  #   depends_on:
+  #     pgpool:
+  #       condition: service_healthy
+  #   environment:
+  #     - PGPASSWORD=postgres
+  #   volumes:
+  #   - ./tests:/tests
+  #   working_dir: /tests
+  #   command: >
+  #     sh -c "
+  #     while ! pg_isready -h pgpool -p 9999; do sleep 2; done;
+  #     sleep 5;
+  #     echo '=== TESTING STARTED ===';
+  #     psql -h pgpool -p 9999 -U postgres -c 'CREATE TABLE IF NOT EXISTS route_test(id SERIAL PRIMARY KEY, node TEXT, query_type TEXT, created_at TIMESTAMPTZ DEFAULT NOW())';
+  #     chmod +x /tests/run_tests.sh && /tests/run_tests.sh;
+  #     echo '=== TESTING COMPLETE ===';
+  #     "
