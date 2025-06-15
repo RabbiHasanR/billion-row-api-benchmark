@@ -32,59 +32,71 @@ services:
       - ./master_slave_replication/slave/data:/var/lib/postgresql/data
 
   
-  pgbouncer_master:
-    build:
-      context: ./pgbouncer
-      dockerfile: Dockerfile.pgbouncer_master
-    container_name: pgbouncer_master
-    hostname: pgbouncer_master
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    # entrypoint: /etc/pgbouncer/generate_userlist.sh
-    entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate_userlist.sh && pgbouncer /etc/pgbouncer/pgbouncer.ini"]
-    volumes:
-      - ./pgbouncer/pgbouncer_master.ini:/etc/pgbouncer/pgbouncer.ini
-    depends_on:
-      - master_db
-      # - slave_db
+  # pgbouncer_master:
+  #   build:
+  #     context: ./pgbouncer
+  #     dockerfile: Dockerfile.pgbouncer_master
+  #   container_name: pgbouncer_master
+  #   hostname: pgbouncer_master
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: ${POSTGRES_DB}
+  #   entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate_userlist.sh && pgbouncer /etc/pgbouncer/pgbouncer.ini"]
+  #   volumes:
+  #     - ./pgbouncer/pgbouncer_master.ini:/etc/pgbouncer/pgbouncer.ini
+  #   depends_on:
+  #     - master_db
 
   
-  pgbouncer_slave:
-    build:
-      context: ./pgbouncer
-      dockerfile: Dockerfile.pgbouncer_slave
-    container_name: pgbouncer_slave
-    hostname: pgbouncer_slave
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    # entrypoint: /etc/pgbouncer/generate_userlist.sh
-    entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate_userlist.sh && pgbouncer /etc/pgbouncer/pgbouncer.ini"]
-    volumes:
-      - ./pgbouncer/pgbouncer_slave.ini:/etc/pgbouncer/pgbouncer.ini
-    depends_on:
-      # - master_db
-      - slave_db
+  # pgbouncer_slave:
+  #   build:
+  #     context: ./pgbouncer
+  #     dockerfile: Dockerfile.pgbouncer_slave
+  #   container_name: pgbouncer_slave
+  #   hostname: pgbouncer_slave
+  #   environment:
+  #     POSTGRES_USER: ${POSTGRES_USER}
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  #     POSTGRES_DB: ${POSTGRES_DB}
+  #   entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate_userlist.sh && pgbouncer /etc/pgbouncer/pgbouncer.ini"]
+  #   volumes:
+  #     - ./pgbouncer/pgbouncer_slave.ini:/etc/pgbouncer/pgbouncer.ini
+  #   depends_on:
+  #     - slave_db
 
 
+  # pgpool:
+  #   build:
+      # context: ./pgpool
+      # dockerfile: Dockerfile
+  #   container_name: pgpool
+  #   hostname: pgpool
+  #   volumes:
+  #     - ./pgpool/pgpool.conf:/usr/local/etc/pgpool.conf
+  #     - ./pgpool/pool_hba.conf:/usr/local/etc/pool_hba.conf
+  #     - ./pgpool/pcp.conf:/usr/local/etc/pcp.conf
+  #     - ./pgpool/logs:/var/log/pgpool-II
+    
+  #   depends_on:
+  #     - pgbouncer_master
+  #     - pgbouncer_slave
+
+
+  # PgPool-II Service
   pgpool:
     build:
       context: ./pgpool
       dockerfile: Dockerfile
     container_name: pgpool
     hostname: pgpool
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - ./pgpool/pgpool.conf:/etc/pgpool-II/pgpool.conf
-      - ./pgpool/pool_hba.conf:/etc/pgpool-II/pool_hba.conf
+      - ./pgpool/pgpool.conf:/usr/local/etc/pgpool.conf
+      - ./pgpool/pool_hba.conf:/usr/local/etc/pool_hba.conf
+      - ./pgpool/pcp.conf:/usr/local/etc/pcp.conf
     depends_on:
-      - pgbouncer_master
-      - pgbouncer_slave
+      - master_db
+      - slave_db
 
   
   redis:
@@ -157,5 +169,3 @@ services:
       # - slave_db
       # - pgbouncer
   
-
-  # pgbouncer_master

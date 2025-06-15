@@ -20,3 +20,21 @@ psql -U postgres <<-EOSQL
     \$\$;
 EOSQL
 
+# Create pgpool_healthcheck user if not exists and grant connect to testdb
+psql -U postgres <<-EOSQL
+    DO \$\$
+    BEGIN
+        IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pgpool_healthcheck') THEN
+            CREATE USER pgpool_healthcheck WITH PASSWORD '12345' REPLICATION LOGIN;
+        END IF;
+    END
+    \$\$;
+
+    -- Grant required privileges on 'testdb' to pgpool_healthcheck
+    GRANT CONNECT ON DATABASE testdb TO pgpool_healthcheck;
+    GRANT USAGE ON SCHEMA public TO pgpool_healthcheck;
+
+    -- Grant SELECT privilege on replication-related system catalogs
+    GRANT SELECT ON pg_stat_replication TO pgpool_healthcheck;
+EOSQL
+

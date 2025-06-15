@@ -1,0 +1,5 @@
+# pool_passwd - PgPool-II Backend User Passwords (Clear Text - DEVELOPMENT ONLY!)
+# username:password
+postgres:postgres
+pgpool_healthcheck:12345
+replicator:123456
