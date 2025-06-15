@@ -12,6 +12,11 @@ services:
     volumes:
       - ./master_slave_replication/master/data:/var/lib/postgresql/data
     command: postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
   
   slave_db:
     build:
@@ -26,10 +31,19 @@ services:
       REPLICATOR_USER: ${REPLICATOR_USER}
       REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
       MASTER_HOST: master_db
+    # depends_on:
+    #   - master_db
     depends_on:
-      - master_db
+      master_db:
+        condition: service_healthy
     volumes:
       - ./master_slave_replication/slave/data:/var/lib/postgresql/data
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   
   # pgbouncer_master:
@@ -94,15 +108,30 @@ services:
       - ./pgpool/pgpool.conf:/usr/local/etc/pgpool.conf
       - ./pgpool/pool_hba.conf:/usr/local/etc/pool_hba.conf
       - ./pgpool/pcp.conf:/usr/local/etc/pcp.conf
+    # depends_on:
+    #   - master_db
+    #   - slave_db
     depends_on:
-      - master_db
-      - slave_db
+      master_db:
+        condition: service_healthy
+      slave_db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "localhost", "-p", "9999"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   
   redis:
     image: redis:7-alpine
     container_name: redis
     hostname: redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   api:
     build:
@@ -128,12 +157,18 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     ports:
       - "5000:8000"
+    # depends_on:
+    #   - master_db
+    #   - slave_db
+    #   - redis
+    #   - pgpool
+
     depends_on:
-      # - master_db
-      # - slave_db
-      # - pgbouncer
-      - pgpool
-      - redis
+      redis:
+        condition: service_healthy
+      pgpool:
+        condition: service_healthy
+      
     volumes:
       - ./api:/app
 
@@ -161,11 +196,39 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
       - ./api:/app
+    # depends_on:
+    #   - master_db
+    #   - slave_db
+    #   - redis
+    #   - pgpool
+    #   - api
+
     depends_on:
-      - redis
-      - api
-      - pgpool
-      # - master_db
-      # - slave_db
-      # - pgbouncer
+      redis:
+        condition: service_healthy
+      pgpool:
+        condition: service_healthy
+      # api:
+      #   condition: service_healthy
   
+
+
+  pgpool_test:
+    image: postgres:15-alpine
+    depends_on:
+      pgpool:
+        condition: service_healthy
+    environment:
+      - PGPASSWORD=postgres
+    volumes:
+    - ./tests:/tests
+    working_dir: /tests
+    command: >
+      sh -c "
+      while ! pg_isready -h pgpool -p 9999; do sleep 2; done;
+      sleep 5;
+      echo '=== TESTING STARTED ===';
+      psql -h pgpool -p 9999 -U postgres -c 'CREATE TABLE IF NOT EXISTS route_test(id SERIAL PRIMARY KEY, node TEXT, query_type TEXT, created_at TIMESTAMPTZ DEFAULT NOW())';
+      chmod +x /tests/run_tests.sh && /tests/run_tests.sh;
+      echo '=== TESTING COMPLETE ===';
+      "

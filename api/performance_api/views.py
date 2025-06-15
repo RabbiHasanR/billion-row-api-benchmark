@@ -7,6 +7,25 @@ import subprocess
 import pandas as pd
 
 
+# class LatestPurchasesView(APIView):
+#     def get(self, request):
+#         try:
+#             limit = int(request.query_params.get("limit", 100))
+#         except ValueError:
+#             return Response({
+#                 "success": False,
+#                 "message": "Invalid value for limit"
+#             }, status=status.HTTP_400_BAD_REQUEST)
+
+#         region = request.query_params.get("region")
+#         params = {
+#             "limit": limit,
+#             "region": region or None
+#         }
+#         result = call_pg_function_json("latest_purchases", params)
+#         return Response(result, status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST)
+
+
 class LatestPurchasesView(APIView):
     def get(self, request):
         try:
@@ -18,12 +37,53 @@ class LatestPurchasesView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         region = request.query_params.get("region")
-        params = {
-            "limit": limit,
-            "region": region or None
-        }
-        result = call_pg_function_json("latest_purchases", params)
-        return Response(result, status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST)
+        region_filter = "TRUE" if not region else "p.region = %s"
+
+        sql = f"""
+            SELECT json_agg(row_to_json(t)) FROM (
+                SELECT
+                    p.id,
+                    p.customer_id,
+                    c.name AS customer_name,
+                    c.email AS customer_email,
+                    p.product_id,
+                    pr.name AS product_name,
+                    pr.category AS product_category,
+                    p.total_price,
+                    p.quantity,
+                    p.purchase_time,
+                    p.region,
+                    p.status
+                FROM purchases p
+                JOIN customers c ON c.id = p.customer_id
+                JOIN products pr ON pr.id = p.product_id
+                WHERE {region_filter}
+                ORDER BY p.purchase_time DESC
+                LIMIT %s
+            ) t
+        """
+
+        try:
+            with connection.cursor() as cursor:
+                if region:
+                    cursor.execute(sql, [region, limit])
+                else:
+                    cursor.execute(sql, [limit])
+                data = cursor.fetchone()[0] or []
+            
+            return Response({
+                "success": True,
+                "data": data,
+                "message": "Fetched latest purchases"
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                "success": False,
+                "data": None,
+                "message": str(e),
+                "code": getattr(e, 'pgcode', 'UNKNOWN')
+            }, status=status.HTTP_400_BAD_REQUEST)
     
 
 
@@ -44,6 +104,62 @@ class AnalyzeLatestPurchasesView(APIView):
         }
         result = call_pg_function_json("analyze_latest_purchases", params)
         return Response(result, status=status.HTTP_200_OK if result.get("success", True) else status.HTTP_400_BAD_REQUEST)
+    
+
+
+# class AnalyzeLatestPurchasesView(APIView):
+#     def get(self, request):
+#         try:
+#             limit = int(request.query_params.get("limit", 100))
+#         except ValueError:
+#             return Response({
+#                 "success": False,
+#                 "message": "Invalid value for limit"
+#             }, status=status.HTTP_400_BAD_REQUEST)
+
+#         region = request.query_params.get("region")
+#         region_filter = "TRUE" if not region else "p.region = %s"
+        
+#         # Construct the raw SQL for EXPLAIN ANALYZE
+#         sql = f"""
+#             EXPLAIN (ANALYZE, FORMAT JSON)
+#             SELECT
+#                 p.id,
+#                 p.customer_id,
+#                 c.name AS customer_name,
+#                 p.product_id,
+#                 pr.name AS product_name,
+#                 p.total_price,
+#                 p.purchase_time,
+#                 p.region,
+#                 p.status
+#             FROM purchases p
+#             JOIN customers c ON c.id = p.customer_id
+#             JOIN products pr ON pr.id = p.product_id
+#             WHERE {region_filter}
+#             ORDER BY p.purchase_time DESC
+#             LIMIT {limit}
+#         """
+
+#         try:
+#             with connection.cursor() as cursor:
+#                 if region:
+#                     cursor.execute(sql, [region])
+#                 else:
+#                     cursor.execute(sql)
+#                 plan_result = cursor.fetchone()[0]  # JSON is returned as a single-element row
+#             return Response({
+#                 "success": True,
+#                 "analyze": plan_result,
+#                 "message": "Analyze completed"
+#             }, status=status.HTTP_200_OK)
+#         except Exception as e:
+#             return Response({
+#                 "success": False,
+#                 "analyze": None,
+#                 "message": str(e),
+#                 "code": getattr(e, 'pgcode', 'UNKNOWN')
+#             }, status=status.HTTP_400_BAD_REQUEST)
     
     
 
