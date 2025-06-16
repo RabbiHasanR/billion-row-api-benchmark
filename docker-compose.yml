@@ -18,12 +18,12 @@ services:
       timeout: 5s
       retries: 10
   
-  slave_db:
+  slave_db_one:
     build:
       context: ./master_slave_replication/slave
       dockerfile: Dockerfile
-    container_name: slave_db
-    hostname: slave_db
+    container_name: slave_db_one
+    hostname: slave_db_one
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -31,13 +31,37 @@ services:
       REPLICATOR_USER: ${REPLICATOR_USER}
       REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
       MASTER_HOST: master_db
-    # depends_on:
-    #   - master_db
     depends_on:
       master_db:
         condition: service_healthy
     volumes:
       - ./master_slave_replication/slave/data:/var/lib/postgresql/data
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  
+  slave_db_two:
+    build:
+      context: ./master_slave_replication/slave
+      dockerfile: Dockerfile
+    container_name: slave_db_two
+    hostname: slave_db_two
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REPLICATOR_USER: ${REPLICATOR_USER}
+      REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
+      MASTER_HOST: master_db
+    depends_on:
+      master_db:
+        condition: service_healthy
+    volumes:
+      - ./master_slave_replication/slave/data_two:/var/lib/postgresql/data
     
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -111,7 +135,9 @@ services:
     depends_on:
       master_db:
         condition: service_healthy
-      slave_db:
+      slave_db_one:
+        condition: service_healthy
+      slave_db_two:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "pg_isready", "-h", "localhost", "-p", "9999"]
