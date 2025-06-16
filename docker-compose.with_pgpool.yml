@@ -1,0 +1,158 @@
+services:
+  master_db:
+    build:
+      context: ./master_slave_replication/master
+      dockerfile: Dockerfile
+    container_name: master_db
+    hostname: master_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./master_slave_replication/master/data:/var/lib/postgresql/data
+    command: postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  
+  slave_db_one:
+    build:
+      context: ./master_slave_replication/slave
+      dockerfile: Dockerfile
+    container_name: slave_db_one
+    hostname: slave_db_one
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REPLICATOR_USER: ${REPLICATOR_USER}
+      REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
+      MASTER_HOST: master_db
+    depends_on:
+      master_db:
+        condition: service_healthy
+    volumes:
+      - ./master_slave_replication/slave/data:/var/lib/postgresql/data
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  
+  slave_db_two:
+    build:
+      context: ./master_slave_replication/slave
+      dockerfile: Dockerfile
+    container_name: slave_db_two
+    hostname: slave_db_two
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REPLICATOR_USER: ${REPLICATOR_USER}
+      REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
+      MASTER_HOST: master_db
+    depends_on:
+      master_db:
+        condition: service_healthy
+    volumes:
+      - ./master_slave_replication/slave/data_two:/var/lib/postgresql/data
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    hostname: redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  
+  pgpool:
+    build:
+      context: ./pgpool
+      dockerfile: Dockerfile
+    container_name: pgpool
+    hostname: pgpool
+    volumes:
+      - ./pgpool/pgpool.conf:/usr/local/etc/pgpool.conf
+      - ./pgpool/pool_hba.conf:/usr/local/etc/pool_hba.conf
+      - ./pgpool/pcp.conf:/usr/local/etc/pcp.conf
+    depends_on:
+      master_db:
+        condition: service_healthy
+      slave_db_one:
+        condition: service_healthy
+      slave_db_two:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "localhost", "-p", "9999"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    image: api-image
+    container_name: api
+    hostname: api
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      MASTER_DB_HOST: pgpool
+      MASTER_DB_PORT: 9999
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    entrypoint: /app/entrypoint.sh
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "5000:8000"
+
+    depends_on:
+      redis:
+        condition: service_healthy
+      pgpool:
+        condition: service_healthy
+      
+    volumes:
+      - ./api:/app
+  
+
+  celery:
+    image: api-image
+    container_name: celery
+    hostname: celery
+    command: celery -A main worker --loglevel=info
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      MASTER_DB_HOST: pgpool
+      MASTER_DB_PORT: 9999
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./api:/app
+
+    depends_on:
+      redis:
+        condition: service_healthy
+      pgpool:
+        condition: service_healthy

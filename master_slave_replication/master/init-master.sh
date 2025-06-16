@@ -38,3 +38,9 @@ psql -U postgres <<-EOSQL
     GRANT SELECT ON pg_stat_replication TO pgpool_healthcheck;
 EOSQL
 
+
+# Run schema.sql
+psql -U postgres -d ${POSTGRES_DB:-testdb} -f /docker-entrypoint-initdb.d/schema.sql
+
+# Run raw_queries.sql
+psql -U postgres -d ${POSTGRES_DB:-testdb} -f /docker-entrypoint-initdb.d/raw_queries.sql

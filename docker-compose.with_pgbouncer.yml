@@ -1,0 +1,103 @@
+services:
+  master_db:
+    build:
+      context: ./master_slave_replication/master
+      dockerfile: Dockerfile
+    container_name: master_db
+    hostname: master_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./master_slave_replication/master/data:/var/lib/postgresql/data
+    command: postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    hostname: redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  
+  pgbouncer:
+    build:
+      context: ./pgbouncer
+      dockerfile: Dockerfile.pgbouncer_master
+    container_name: pgbouncer
+    hostname: pgbouncer
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate_userlist.sh && pgbouncer /etc/pgbouncer/pgbouncer.ini"]
+    volumes:
+      - ./pgbouncer/pgbouncer_master.ini:/etc/pgbouncer/pgbouncer.ini
+    depends_on:
+      master_db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ${POSTGRES_USER} -d postgres"]
+      interval: 5s 
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    image: api-image
+    container_name: api
+    hostname: api
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      MASTER_DB_HOST: pgbouncer
+      MASTER_DB_PORT: 6432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    entrypoint: /app/entrypoint.sh
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "5000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./api:/app
+  
+
+  celery:
+    image: api-image
+    container_name: celery
+    hostname: celery
+    command: celery -A main worker --loglevel=info
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      MASTER_DB_HOST: pgbouncer
+      MASTER_DB_PORT: 6432
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - ./api:/app
+
+    depends_on:
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
