@@ -121,7 +121,8 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     entrypoint: /app/entrypoint.sh
-    command: gunicorn --workers 4 --bind unix:/app/socket/gunicorn.sock main.wsgi:application
+    # command: gunicorn --workers 4 --bind unix:/app/socket/gunicorn.sock main.wsgi:application
+    command: gunicorn --workers 4 --worker-class gevent --bind unix:/app/socket/gunicorn.sock main.wsgi:application
     depends_on:
       redis:
         condition: service_healthy
@@ -146,7 +147,8 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     entrypoint: /app/entrypoint.sh
-    command: gunicorn --workers 4 --bind unix:/app/socket/gunicorn.sock main.wsgi:application
+    # command: gunicorn --workers 4 --bind unix:/app/socket/gunicorn.sock main.wsgi:application
+    command: gunicorn --workers 4 --worker-class gevent --bind unix:/app/socket/gunicorn.sock main.wsgi:application
     depends_on:
       redis:
         condition: service_healthy

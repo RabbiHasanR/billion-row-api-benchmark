@@ -263,7 +263,7 @@ class LoadTestView(APIView):
                 "-t", "1m"
             ]
 
-            result = subprocess.run(locust_cmd, capture_output=True, text=True)
+            result = subprocess.run(locust_cmd, capture_output=True, text=True, timeout=120)
             locust_failed = result.returncode != 0
 
             # Attempt to parse CSV results regardless of failure
@@ -301,6 +301,7 @@ class LoadTestView(APIView):
             return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
+            print('load test error:', e)
             return Response({
                 "success": False,
                 "message": f"Unexpected error occurred: {str(e)}"
