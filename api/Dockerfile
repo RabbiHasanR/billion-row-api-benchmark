@@ -75,5 +75,8 @@ RUN python manage.py collectstatic --noinput || true
 
 EXPOSE 8000
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+RUN mkdir -p /app/socket && chown -R www-data:www-data /app/socket
+
+CMD ["gunicorn", "--workers", "4", "--bind", "unix:/app/socket/gunicorn.sock", "--access-logfile", "-", "--error-logfile", "-", "main.wsgi:application"]
 

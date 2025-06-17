@@ -1,4 +1,4 @@
-FROM postgres:15
+FROM postgres:15-alpine
 
 COPY ./postgresql.conf /etc/postgresql/postgresql.conf
 COPY ./pg_hba.conf /etc/postgresql/pg_hba.conf
