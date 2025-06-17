@@ -5,6 +5,7 @@ from rest_framework import status
 from utils.pg_functions import call_pg_function_json
 import subprocess
 import pandas as pd
+import os
 
 
 # class LatestPurchasesView(APIView):
@@ -169,13 +170,80 @@ class AnalyzeLatestPurchasesView(APIView):
 
 
 
+# class LoadTestView(APIView):
+#     def post(self, request):
+#         try:
+#             # Retrieve parameters from request
+#             users = request.data.get("users", 1000)  # Default: 1000 users
+#             spawn_rate = request.data.get("spawn_rate", 100)  # Default: 100 per second
+#             api_url = request.data.get("api_url")  # No default, must be provided
+
+#             if not api_url:
+#                 return Response({
+#                     "success": False,
+#                     "message": "API URL is required."
+#                 }, status=status.HTTP_400_BAD_REQUEST)
+
+#             # Run Locust for API load testing (5s duration)
+#             locust_cmd = [
+#                 "locust",
+#                 "-f", "utils/load_test.py",
+#                 "--users", str(users),
+#                 "--spawn-rate", str(spawn_rate),
+#                 "--host", api_url,
+#                 "--headless",
+#                 "--csv", "load_test_results",
+#                 "-t", "1m"
+#             ]
+#             subprocess.run(locust_cmd, check=True)
+
+#             # Read Locust metrics from the CSV results
+#             locust_stats_file = "load_test_results_stats.csv"
+#             locust_json = []
+#             try:
+#                 df = pd.read_csv(locust_stats_file)
+
+#                 # Convert NaN values to 0 or None
+#                 df.fillna(0, inplace=True)
+
+#                 for _, row in df.iterrows():
+#                     locust_json.append({
+#                         "request_type": row["Type"],
+#                         "request_name": row["Name"],
+#                         "request_count": int(row["Request Count"]),  
+#                         "failure_count": int(row["Failure Count"]),
+#                         "median_response_time_ms": float(row["Median Response Time"]),
+#                         "average_response_time_ms": float(row["Average Response Time"]),
+#                         "min_response_time_ms": float(row["Min Response Time"]),
+#                         "max_response_time_ms": float(row["Max Response Time"]),
+#                         "requests_per_second": float(row["Requests/s"])
+#                     })
+
+#             except Exception as e:
+#                 locust_json = {"error": f"Failed to process Locust CSV: {str(e)}"}
+
+#             return Response({
+#                 "success": True,
+#                 "message": "Load test completed.",
+#                 "locust_results": locust_json
+#             }, status=status.HTTP_200_OK)
+
+#         except Exception as e:
+#             return Response({
+#                 "success": False,
+#                 "message": f"Load test failed: {str(e)}"
+#             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
 class LoadTestView(APIView):
     def post(self, request):
         try:
             # Retrieve parameters from request
-            users = request.data.get("users", 1000)  # Default: 1000 users
-            spawn_rate = request.data.get("spawn_rate", 100)  # Default: 100 per second
-            api_url = request.data.get("api_url")  # No default, must be provided
+            users = request.data.get("users", 1000)
+            spawn_rate = request.data.get("spawn_rate", 100)
+            api_url = request.data.get("api_url")
 
             if not api_url:
                 return Response({
@@ -183,7 +251,7 @@ class LoadTestView(APIView):
                     "message": "API URL is required."
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # Run Locust for API load testing (5s duration)
+            # Run Locust load test
             locust_cmd = [
                 "locust",
                 "-f", "utils/load_test.py",
@@ -194,41 +262,46 @@ class LoadTestView(APIView):
                 "--csv", "load_test_results",
                 "-t", "1m"
             ]
-            subprocess.run(locust_cmd, check=True)
 
-            # Read Locust metrics from the CSV results
-            locust_stats_file = "load_test_results_stats.csv"
+            result = subprocess.run(locust_cmd, capture_output=True, text=True)
+            locust_failed = result.returncode != 0
+
+            # Attempt to parse CSV results regardless of failure
             locust_json = []
-            try:
-                df = pd.read_csv(locust_stats_file)
+            locust_stats_file = "load_test_results_stats.csv"
+            if os.path.exists(locust_stats_file):
+                try:
+                    df = pd.read_csv(locust_stats_file)
+                    df.fillna(0, inplace=True)
 
-                # Convert NaN values to 0 or None
-                df.fillna(0, inplace=True)
+                    for _, row in df.iterrows():
+                        locust_json.append({
+                            "request_type": row.get("Type", ""),
+                            "request_name": row.get("Name", ""),
+                            "request_count": int(row.get("Request Count", 0)),
+                            "failure_count": int(row.get("Failure Count", 0)),
+                            "median_response_time_ms": float(row.get("Median Response Time", 0)),
+                            "average_response_time_ms": float(row.get("Average Response Time", 0)),
+                            "min_response_time_ms": float(row.get("Min Response Time", 0)),
+                            "max_response_time_ms": float(row.get("Max Response Time", 0)),
+                            "requests_per_second": float(row.get("Requests/s", 0))
+                        })
+                except Exception as e:
+                    locust_json = {"error": f"Failed to process Locust CSV: {str(e)}"}
 
-                for _, row in df.iterrows():
-                    locust_json.append({
-                        "request_type": row["Type"],
-                        "request_name": row["Name"],
-                        "request_count": int(row["Request Count"]),  
-                        "failure_count": int(row["Failure Count"]),
-                        "median_response_time_ms": float(row["Median Response Time"]),
-                        "average_response_time_ms": float(row["Average Response Time"]),
-                        "min_response_time_ms": float(row["Min Response Time"]),
-                        "max_response_time_ms": float(row["Max Response Time"]),
-                        "requests_per_second": float(row["Requests/s"])
-                    })
+            response_data = {
+                "success": not locust_failed,
+                "message": "Load test completed with warnings." if locust_failed else "Load test completed.",
+                "locust_results": locust_json,
+            }
 
-            except Exception as e:
-                locust_json = {"error": f"Failed to process Locust CSV: {str(e)}"}
+            if locust_failed:
+                response_data["error_output"] = result.stderr or result.stdout
 
-            return Response({
-                "success": True,
-                "message": "Load test completed.",
-                "locust_results": locust_json
-            }, status=status.HTTP_200_OK)
+            return Response(response_data, status=status.HTTP_200_OK)
 
         except Exception as e:
             return Response({
                 "success": False,
-                "message": f"Load test failed: {str(e)}"
+                "message": f"Unexpected error occurred: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

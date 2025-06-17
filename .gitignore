@@ -2,6 +2,10 @@
 .env
 
 api/env/
+api/load_test_results_exceptions.csv
+api/load_test_results_failures.csv
+api/load_test_results_stats_history.csv
+api/load_test_results_stats.csv
 master_slave_replication/master/data/
 master_slave_replication/slave/data/
 

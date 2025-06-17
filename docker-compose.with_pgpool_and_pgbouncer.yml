@@ -132,14 +132,13 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
+    image: api-image
     container_name: api
     hostname: api
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      REPLICATOR_USER: ${REPLICATOR_USER}
-      REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
       MASTER_DB_HOST: pgbouncer
       MASTER_DB_PORT: 6432
       CELERY_BROKER_URL: redis://redis:6379/0
@@ -160,9 +159,7 @@ services:
 
 
   celery:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
+    image: api-image
     container_name: celery
     hostname: celery
     command: celery -A main worker --loglevel=info
@@ -170,8 +167,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      REPLICATOR_USER: ${REPLICATOR_USER}
-      REPLICATOR_PASSWORD: ${REPLICATOR_PASSWORD}
       MASTER_DB_HOST: pgbouncer
       MASTER_DB_PORT: 6432
       CELERY_BROKER_URL: redis://redis:6379/0
@@ -182,5 +177,5 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      pgpool:
+      pgbouncer:
         condition: service_healthy
