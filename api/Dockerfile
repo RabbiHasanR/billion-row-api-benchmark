@@ -1,44 +1,3 @@
-# FROM python:3.13.3-slim AS builder
-
-# WORKDIR /app
-
-# ENV PYTHONDONTWRITEBYTECODE=1
-# ENV PYTHONUNBUFFERED=1
-
-# RUN apt-get update && apt-get install -y gcc libpq-dev build-essential
-
-# COPY requirements.txt .
-# RUN pip install --upgrade pip && pip install --user -r requirements.txt
-
-# FROM python:3.13.3-slim AS runtime
-
-# WORKDIR /app
-
-# ENV PATH=/root/.local/bin:$PATH
-# ENV PYTHONDONTWRITEBYTECODE=1
-# ENV PYTHONUNBUFFERED=1
-
-# RUN apt-get update && apt-get install -y libpq-dev gcc htop netcat-openbsd curl && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# COPY --from=builder /root/.local /root/.local
-# COPY . /app/
-
-# RUN python manage.py collectstatic --noinput
-
-# EXPOSE 8000
-
-# COPY entrypoint.sh /app/entrypoint.sh
-# RUN chmod +x /app/entrypoint.sh
-
-# ENTRYPOINT ["/app/entrypoint.sh"]
-
-# CMD ["gunicorn", "main.wsgi:application", "--bind", "0.0.0.0:8000"]
-# CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-
-
-
-
-
 FROM python:3.13.3-slim AS builder
 
 WORKDIR /app
@@ -75,8 +34,17 @@ RUN python manage.py collectstatic --noinput || true
 
 EXPOSE 8000
 
-# CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-RUN mkdir -p /app/socket && chown -R www-data:www-data /app/socket
+# CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]  # this for normal startup
 
-CMD ["gunicorn", "--workers", "4", "--bind", "unix:/app/socket/gunicorn.sock", "--access-logfile", "-", "--error-logfile", "-", "main.wsgi:application"]
+# this is for wsgi application with gunicorn and unix sock
+
+# RUN mkdir -p /app/socket && chown -R www-data:www-data /app/socket
+
+# CMD ["gunicorn", "--workers", "4", "--bind", "unix:/app/socket/gunicorn.sock", "--access-logfile", "-", "--error-logfile", "-", "main.wsgi:application"]
+
+# this is for wsgi application with Start Gunicorn on TCP instead of UNIX socket
+CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:8000", "--access-logfile", "-", "--error-logfile", "-", "main.wsgi:application"]
+
+# Use Daphne for ASGI applications using daphne with tcp
+# CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "main.asgi:application"]
 

@@ -121,9 +121,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     entrypoint: /app/entrypoint.sh
-    # command: gunicorn --workers 4 --bind unix:/app/socket/gunicorn.sock main.wsgi:application
-    # command: gunicorn --workers 4 --worker-class gevent --bind unix:/app/socket/gunicorn.sock main.wsgi:application # this works for unix
-    command: gunicorn --workers 4 --worker-class gevent --bind 0.0.0.0:8000 --access-logfile - --error-logfile - main.wsgi:application # this works for tcp
+    command: daphne -b 0.0.0.0 -p 8000 main.asgi:application  # this is for tcp
     depends_on:
       redis:
         condition: service_healthy
@@ -132,7 +130,7 @@ services:
       
     volumes:
       - ./api:/app
-      # - ./socket:/app/socket # if app run using unix then need it
+      # - ./socket:/app/socket  # this is for unix
   
 
   api_replica_2:
@@ -148,9 +146,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
     entrypoint: /app/entrypoint.sh
-    # command: gunicorn --workers 4 --bind unix:/app/socket/gunicorn.sock main.wsgi:application
-    # command: gunicorn --workers 4 --worker-class gevent --bind unix:/app/socket/gunicorn.sock main.wsgi:application  # this works for unix
-    command: gunicorn --workers 4 --worker-class gevent --bind 0.0.0.0:8000 --access-logfile - --error-logfile - main.wsgi:application  # this works for tcp
+    command: daphne -b 0.0.0.0 -p 8000 main.asgi:application # this is for tcp
     depends_on:
       redis:
         condition: service_healthy
@@ -159,7 +155,7 @@ services:
       
     volumes:
       - ./api:/app
-      # - ./socket:/app/socket  # if app run using unix then need it
+      # - ./socket:/app/socket # this is for unix
   
 
   celery:

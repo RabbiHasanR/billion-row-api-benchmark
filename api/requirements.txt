@@ -7,3 +7,7 @@ redis==6.2.0
 Faker==37.3.0
 locust==2.37.6
 pandas==2.2.3
+
+channels==4.2.2
+channels-redis==4.2.1
+daphne==4.2.0

@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.db import connection
 from rest_framework import status
-from tasks.data_insertion import insert_customers, insert_products, insert_purchases
+from tasks.data_insertion import insert_customers, insert_products, insert_purchases, send_final_notification
 from celery import group, chain
 from utils.pg_functions import call_pg_function_json
 
@@ -81,7 +81,6 @@ class InsertDataView(APIView):
         try:
             total_customers = int(request.data.get('total_customers', 1_000_000))
             total_products = int(request.data.get('total_products', 100_000))
-            # total_purchases = int(request.data.get('total_purchases', 10_000_000))
             total_purchases = int(request.data.get('total_purchases', 50_000_00))
             
             insert_stage = request.data.get('stage', 'all')
@@ -90,14 +89,14 @@ class InsertDataView(APIView):
             workflow = None
 
             if insert_stage == 'all':
-                # Customers + Products in parallel, then purchases
                 parallel_tasks = group(
-                    insert_customers.s(total_customers),
-                    insert_products.s(total_products)
+                    insert_customers.s(total_customers, notify=False),
+                    insert_products.s(total_products, notify=False)
                 )
                 workflow = chain(
                     parallel_tasks,
-                    insert_purchases.si(total_purchases)
+                    insert_purchases.si(total_purchases, notify=False),
+                    send_final_notification.si()
                 ).apply_async()
 
             elif insert_stage == 'customers':
