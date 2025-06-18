@@ -19,9 +19,12 @@ PGPASSWORD="$REPLICATOR_PASSWORD" pg_basebackup -h "$MASTER_HOST" -D /var/lib/po
 # After pg_basebackup step
 touch /var/lib/postgresql/data/standby.signal
 
+
+
 # Fix permissions and ownership
 chown -R postgres:postgres /var/lib/postgresql/data
 chmod 700 /var/lib/postgresql/data
+
 
 exec gosu postgres postgres -c config_file=/etc/postgresql/postgresql.conf
 

@@ -21,7 +21,7 @@ services:
   slave_db_one:
     build:
       context: ./master_slave_replication/slave
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.slave_db_one
     container_name: slave_db_one
     hostname: slave_db_one
     environment:
@@ -36,7 +36,6 @@ services:
         condition: service_healthy
     volumes:
       - ./master_slave_replication/slave/data:/var/lib/postgresql/data
-    
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -47,7 +46,7 @@ services:
   slave_db_two:
     build:
       context: ./master_slave_replication/slave
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.slave_db_two
     container_name: slave_db_two
     hostname: slave_db_two
     environment:
@@ -62,7 +61,6 @@ services:
         condition: service_healthy
     volumes:
       - ./master_slave_replication/slave/data_two:/var/lib/postgresql/data
-    
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -88,9 +86,9 @@ services:
     container_name: pgpool
     hostname: pgpool
     volumes:
-      - ./pgpool/pgpool.conf:/usr/local/etc/pgpool.conf
-      - ./pgpool/pool_hba.conf:/usr/local/etc/pool_hba.conf
-      - ./pgpool/pcp.conf:/usr/local/etc/pcp.conf
+      - ./pgpool/pgpool.conf:/etc/pgpool2/pgpool.conf
+      - ./pgpool/pool_hba.conf:/etc/pgpool2/pool_hba.conf
+      - ./pgpool/pcp.conf:/etc/pgpool2/pcp.conf
     depends_on:
       master_db:
         condition: service_healthy
@@ -195,3 +193,4 @@ services:
       - api_replica_2
     # volumes:
     #   - ./socket:/app/socket # this is for unix
+

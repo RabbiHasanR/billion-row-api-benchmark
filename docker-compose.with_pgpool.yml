@@ -21,7 +21,7 @@ services:
   slave_db_one:
     build:
       context: ./master_slave_replication/slave
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.slave_db_one
     container_name: slave_db_one
     hostname: slave_db_one
     environment:
@@ -47,7 +47,7 @@ services:
   slave_db_two:
     build:
       context: ./master_slave_replication/slave
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.slave_db_two
     container_name: slave_db_two
     hostname: slave_db_two
     environment:
