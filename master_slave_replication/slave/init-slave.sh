@@ -29,3 +29,8 @@ chmod 700 /var/lib/postgresql/data
 exec gosu postgres postgres -c config_file=/etc/postgresql/postgresql.conf
 
 echo "✅ Slave initialized. Ready to start."
+
+
+
+
+

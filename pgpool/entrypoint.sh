@@ -1,26 +1,29 @@
-#!/bin/bash
+#!/bin/sh
 set -e
 
-echo "🔄 Pgpool Entrypoint starting..."
+PGPOOL_HOME="/usr/local/pgpool-II"
 
-KEY_PATH="/pgpool_ssh_keys/id_rsa"
-KEY_DIR="$(dirname "$KEY_PATH")"
+# Ensure runtime directory exists (should already be owned by pgpool)
+mkdir -p /var/run/pgpool
 
-# Ensure dir exists and is writable
-mkdir -p "$KEY_DIR"
-chmod 700 "$KEY_DIR"
-chown postgres:postgres "$KEY_DIR"
+# Link volume-mounted configs if present
+for config_file in pgpool.conf pool_hba.conf pcp.conf pool_passwd; do
+    if [ -f "/etc/${config_file}" ]; then
+        echo "Using ${config_file} from /etc (mounted volume)"
+        cp -f "/etc/${config_file}" "${PGPOOL_HOME}/etc/${config_file}"
+        chmod 600 "${PGPOOL_HOME}/etc/${config_file}"
+    fi
+done
 
-# Generate key as postgres
-if [ ! -f "$KEY_PATH" ]; then
-  echo "🔐 Generating SSH keypair..."
-  su - postgres -c "ssh-keygen -t rsa -b 4096 -f $KEY_PATH -N ''"
+# Validate presence of config
+if [ ! -f "${PGPOOL_HOME}/etc/pgpool.conf" ]; then
+    echo "Error: pgpool.conf not found in ${PGPOOL_HOME}/etc/" >&2
+    exit 1
 fi
 
-# Link private key for failover
-[ -L /etc/pgpool2/id_rsa ] || ln -sf "$KEY_PATH" /etc/pgpool2/id_rsa
+export PGPOOL_PID_FILE="/tmp/pgpool/pgpool.pid"
+mkdir -p "$(dirname "$PGPOOL_PID_FILE")"
 
-# Switch to postgres and run pgpool
-exec su postgres -c "pgpool -n -f /etc/pgpool2/pgpool.conf \
-  -a /etc/pgpool2/pool_hba.conf \
-  -F /etc/pgpool2/pool_passwd"
+mkdir -p /tmp/pgpool
+
+exec "$@"
