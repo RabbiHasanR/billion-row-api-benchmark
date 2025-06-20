@@ -34,11 +34,10 @@ ARG PGPOOL_PASSWORD=postgres
 ENV PGPOOL_HOME=/usr/local/pgpool-II
 ENV PATH=$PATH:$PGPOOL_HOME/bin:$PGPOOL_HOME/sbin
 
-# Create user and group
+
 RUN addgroup -g 1000 pgpool && \
     adduser -D -u 1000 -G pgpool pgpool
 
-# Install dependencies
 RUN apk add --no-cache --virtual .build-deps \
     build-base postgresql-dev openssl-dev readline-dev zlib-dev \
     wget tar linux-headers libxml2-dev libxslt-dev \
@@ -47,7 +46,6 @@ RUN apk add --no-cache --virtual .build-deps \
     postgresql14-client libpq libxml2 libxslt openssl \
     --repository=http://dl-cdn.alpinelinux.org/alpine/v3.20/community/
 
-# Download and build Pgpool-II
 RUN wget -q "https://www.pgpool.net/mediawiki/download.php?f=pgpool-II-${PGPOOL_VERSION}.tar.gz" -O "/tmp/pgpool-II-${PGPOOL_VERSION}.tar.gz" && \
     tar -xzf "/tmp/pgpool-II-${PGPOOL_VERSION}.tar.gz" -C /tmp
 
@@ -63,33 +61,36 @@ RUN cd "/tmp/pgpool-II-${PGPOOL_VERSION}" && \
     rm -rf /tmp/* && \
     apk del .build-deps
 
-# Create config and writable PID directory
 RUN mkdir -p ${PGPOOL_HOME}/etc ${PGPOOL_HOME}/log /tmp/pgpool && \
     chown -R pgpool:pgpool ${PGPOOL_HOME}/etc /tmp/pgpool && \
     chmod 700 /tmp/pgpool
 
-# Copy config files
 COPY ./config/pgpool.conf ${PGPOOL_HOME}/etc/
 COPY ./config/pool_hba.conf ${PGPOOL_HOME}/etc/
 COPY ./config/pcp.conf ${PGPOOL_HOME}/etc/
 COPY ./config/pool_passwd ${PGPOOL_HOME}/etc/
 
-RUN chown -R pgpool:pgpool ${PGPOOL_HOME}/etc && \
-    chmod 600 ${PGPOOL_HOME}/etc/pool_passwd
+# RUN chown -R pgpool:pgpool ${PGPOOL_HOME}/etc && \
+#     chmod 600 ${PGPOOL_HOME}/etc/pool_passwd && \
+#     chmod 600 ${PGPOOL_HOME}/etc/pcp.conf
 
 
-# RUN echo "postgres:`${PGPOOL_HOME}/bin/pg_md5` -m -u postgres ${PGPOOL_PASSWORD}" > ${PGPOOL_HOME}/etc/pool_passwd
 
-
-# Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# In your RUN commands, ensure these exist:
+RUN chown -R pgpool:pgpool ${PGPOOL_HOME}/etc && \
+    chmod 600 ${PGPOOL_HOME}/etc/pool_passwd && \
+    chmod 600 ${PGPOOL_HOME}/etc/pcp.conf
+
+# Also add this to ensure runtime permissions:
+RUN echo "chmod 600 ${PGPOOL_HOME}/etc/pcp.conf ${PGPOOL_HOME}/etc/pool_passwd" >> /entrypoint.sh
 
 COPY ./config/failover.sh ${PGPOOL_HOME}/etc/
 RUN chmod +x ${PGPOOL_HOME}/etc/failover.sh
 
-# COPY ./config/follow_master.sh ${PGPOOL_HOME}/etc/
-# RUN chmod +x ${PGPOOL_HOME}/etc/follow_master.sh
+
 
 USER pgpool
 

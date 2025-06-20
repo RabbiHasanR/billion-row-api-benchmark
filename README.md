@@ -15,3 +15,18 @@ pcp_node_info -h localhost -p 9898 -U pgpool  # using tcp for pcp connection in 
 
 pg_md5 <password>  # for make md5 password
 
+
+
+
+# username:password
+postgres:postgres
+pgpool_healthcheck:12345
+replicator:123456
+
+# pass is: admin123  pcp.conf
+
+# password is 'password' for pcp pgpool
+# password is 'admin123'  for pcp admin
+
+
+pcp_node_count -h localhost -p 9898 -U pgpool -W
