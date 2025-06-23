@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+
 # Check required env vars
 if [ -z "$MASTER_HOST" ]; then
   echo "Error: MASTER_HOST is not set!"
@@ -29,6 +30,7 @@ chmod 700 /var/lib/postgresql/data
 exec gosu postgres postgres -c config_file=/etc/postgresql/postgresql.conf
 
 echo "✅ Slave initialized. Ready to start."
+
 
 
 

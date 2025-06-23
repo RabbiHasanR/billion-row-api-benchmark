@@ -11,7 +11,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - ./master_slave_replication/master/data:/var/lib/postgresql/data
-    command: postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -76,10 +75,14 @@ services:
       dockerfile: Dockerfile
     container_name: pgpool
     hostname: pgpool
+    environment:
+      - PGPOOL_USER=${DB_TEST_USER}
+      - PGPOOL_PASSWORD=${DB_TEST_PASSWORD}
+      - PGPOOL_HEALTH_CHECK_USER=${PGPOOL_HEALTHCHECK_USER}
+      - PGPOOL_HEALTH_CHECK_PASSWORD=${PGPOOL_HEALTHCHECK_PASSWORD}
     volumes:
-      - ./pgpool/pgpool.conf:/usr/local/etc/pgpool.conf
-      - ./pgpool/pool_hba.conf:/usr/local/etc/pool_hba.conf
-      - ./pgpool/pcp.conf:/usr/local/etc/pcp.conf
+      - ./pgpool/config:/usr/local/pgpool-II/etc
+      - ./pgpool/runtime:/var/run/pgpool
     depends_on:
       master_db:
         condition: service_healthy
@@ -88,10 +91,12 @@ services:
       slave_db_two:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "pg_isready", "-h", "localhost", "-p", "9999"]
+      test: ["CMD", "pg_isready", "-h", "localhost", "-U", "pgpool_healthcheck", "-p", "9999"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
   
 
@@ -102,8 +107,8 @@ services:
     container_name: pgbouncer
     hostname: pgbouncer
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${DB_TEST_USER}
+      POSTGRES_PASSWORD: ${DB_TEST_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     entrypoint: ["/bin/sh", "-c", "/usr/local/bin/generate_userlist.sh && pgbouncer /etc/pgbouncer/pgbouncer.ini"]
     volumes:
@@ -112,7 +117,7 @@ services:
       pgpool:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ${POSTGRES_USER} -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U ${DB_TEST_USER} -d ${POSTGRES_DB}"]
       interval: 5s 
       timeout: 5s
       retries: 5
@@ -136,8 +141,8 @@ services:
     container_name: api
     hostname: api
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${DB_TEST_USER}
+      POSTGRES_PASSWORD: ${DB_TEST_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       MASTER_DB_HOST: pgbouncer
       MASTER_DB_PORT: 6432
@@ -164,8 +169,8 @@ services:
     hostname: celery
     command: celery -A main worker --loglevel=info
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${DB_TEST_USER}
+      POSTGRES_PASSWORD: ${DB_TEST_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       MASTER_DB_HOST: pgbouncer
       MASTER_DB_PORT: 6432

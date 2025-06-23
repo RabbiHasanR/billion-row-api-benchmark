@@ -11,7 +11,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - ./master_slave_replication/master/data:/var/lib/postgresql/data
-    # command: postgres -c config_file=/var/lib/postgresql/data/postgresql.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -78,32 +77,6 @@ services:
       timeout: 5s
       retries: 5
 
-  
-  # pgpool:
-  #   build:
-  #     context: ./pgpool
-  #     dockerfile: Dockerfile
-  #   container_name: pgpool
-  #   hostname: pgpool
-  #   environment:
-  #     PGPOOL_USER: "postgres"       
-  #     PGPOOL_PASSWORD: "postgres"
-  #   volumes:
-  #     - ./pgpool/pgpool.conf:/etc/pgpool2/pgpool.conf
-  #     - ./pgpool/pool_hba.conf:/etc/pgpool2/pool_hba.conf
-  #     - ./pgpool/pcp.conf:/etc/pgpool2/pcp.conf
-  #   depends_on:
-  #     master_db:
-  #       condition: service_healthy
-  #     slave_db_one:
-  #       condition: service_healthy
-  #     slave_db_two:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD", "pg_isready", "-h", "localhost", "-p", "9999"]
-  #     interval: 5s
-  #     timeout: 5s
-  #     retries: 10
 
 
   pgpool:
@@ -117,11 +90,7 @@ services:
       - PGPOOL_PASSWORD=${DB_TEST_PASSWORD}
       - PGPOOL_HEALTH_CHECK_USER=${PGPOOL_HEALTHCHECK_USER}
       - PGPOOL_HEALTH_CHECK_PASSWORD=${PGPOOL_HEALTHCHECK_PASSWORD}
-    ports:
-      - "9999:9999"
-      - "9898:9898"
     volumes:
-      # - ./pgpool/config:/usr/local/pgpool-II/etc:ro
       - ./pgpool/config:/usr/local/pgpool-II/etc
       - ./pgpool/runtime:/var/run/pgpool
     depends_on:
@@ -163,9 +132,6 @@ services:
 
 
   api_replica_1:
-    # build:
-    #   context: ./api
-    #   dockerfile: Dockerfile
     image: api-image
     container_name: api_replica_1
     hostname: api_replica_1
@@ -177,7 +143,6 @@ services:
       MASTER_DB_PORT: 9999
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-    # entrypoint: /app/entrypoint.sh
     command: daphne -b 0.0.0.0 -p 8000 main.asgi:application  # this is for tcp
     depends_on:
       redis:
@@ -204,7 +169,6 @@ services:
       MASTER_DB_PORT: 9999
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-    # entrypoint: /app/entrypoint.sh
     command: daphne -b 0.0.0.0 -p 8000 main.asgi:application # this is for tcp
     depends_on:
       redis:
@@ -261,5 +225,23 @@ services:
 
 
 
-# volumes:
-#   pgpool-runtime:
+
+  # pgpool_test:
+  #   image: postgres:15-alpine
+  #   depends_on:
+  #     pgpool:
+  #       condition: service_healthy
+  #   environment:
+  #     - PGPASSWORD=12345
+  #   volumes:
+  #   - ./tests:/tests
+  #   working_dir: /tests
+  #   command: >
+  #     sh -c "
+  #     while ! pg_isready -h pgpool -p 9999; do sleep 2; done;
+  #     sleep 5;
+  #     echo '=== TESTING STARTED ===';
+  #     psql -h pgpool -p 9999 -U test_user -c 'CREATE TABLE IF NOT EXISTS route_test(id SERIAL PRIMARY KEY, node TEXT, query_type TEXT, created_at TIMESTAMPTZ DEFAULT NOW())';
+  #     chmod +x /tests/run_tests.sh && /tests/run_tests.sh;
+  #     echo '=== TESTING COMPLETE ===';
+  #     "

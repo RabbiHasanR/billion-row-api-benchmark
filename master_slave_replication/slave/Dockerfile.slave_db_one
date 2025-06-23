@@ -1,5 +1,21 @@
 FROM postgres:15-alpine
 
+# # Install and configure SSH
+# RUN apk add --no-cache openssh-server && \
+#     mkdir -p /var/run/sshd && \
+#     ssh-keygen -A && \
+#     echo "Port 22" >> /etc/ssh/sshd_config && \
+#     echo "ListenAddress 0.0.0.0" >> /etc/ssh/sshd_config && \
+#     echo "PermitRootLogin no" >> /etc/ssh/sshd_config && \
+#     echo "PasswordAuthentication no" >> /etc/ssh/sshd_config && \
+#     echo "AllowUsers postgres" >> /etc/ssh/sshd_config && \
+#     echo "AuthorizedKeysFile /var/lib/postgresql/.ssh/authorized_keys" >> /etc/ssh/sshd_config
+
+# # Create .ssh directory
+# RUN mkdir -p /var/lib/postgresql/.ssh && \
+#     chown postgres:postgres /var/lib/postgresql/.ssh && \
+#     chmod 700 /var/lib/postgresql/.ssh
+
 COPY ./postgresql_slave_db_one.conf /etc/postgresql/postgresql.conf
 COPY ./pg_hba.conf /etc/postgresql/pg_hba.conf
 
@@ -7,7 +23,7 @@ COPY ./pg_hba.conf /etc/postgresql/pg_hba.conf
 COPY ./init-slave.sh /usr/local/bin/init-slave.sh
 RUN chmod +x /usr/local/bin/init-slave.sh
 
-EXPOSE 5432
+EXPOSE 5432 22
 
 ENTRYPOINT ["/usr/local/bin/init-slave.sh"]
 

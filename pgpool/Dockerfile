@@ -1,30 +1,3 @@
-# FROM debian:bookworm-slim
-
-# RUN apt-get update && \
-#     apt-get install -y --no-install-recommends \
-#         pgpool2 \
-#         postgresql-client \
-#     && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# RUN mkdir -p /etc/pgpool2 /var/log/pgpool2 \
-#     && chown -R postgres:postgres /etc/pgpool2 /var/log/pgpool2
-
-# COPY pgpool.conf pool_hba.conf pool_passwd pcp.conf /etc/pgpool2/
-
-# RUN chmod 600 /etc/pgpool2/pool_passwd /etc/pgpool2/pcp.conf \
-#     && chown postgres:postgres /etc/pgpool2/pool_passwd /etc/pgpool2/pcp.conf
-
-# EXPOSE 9999 9898
-
-# USER postgres
-
-# CMD ["pgpool", "-n", "-f", "/etc/pgpool2/pgpool.conf", "-a", "/etc/pgpool2/pool_hba.conf", "-F", "/etc/pgpool2/pool_passwd"]
-
-
-
-
-
-
 FROM alpine:3.20
 
 ARG PGPOOL_VERSION=4.6.2
@@ -70,26 +43,16 @@ COPY ./config/pool_hba.conf ${PGPOOL_HOME}/etc/
 COPY ./config/pcp.conf ${PGPOOL_HOME}/etc/
 COPY ./config/pool_passwd ${PGPOOL_HOME}/etc/
 
-# RUN chown -R pgpool:pgpool ${PGPOOL_HOME}/etc && \
-#     chmod 600 ${PGPOOL_HOME}/etc/pool_passwd && \
-#     chmod 600 ${PGPOOL_HOME}/etc/pcp.conf
-
 
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# In your RUN commands, ensure these exist:
 RUN chown -R pgpool:pgpool ${PGPOOL_HOME}/etc && \
     chmod 600 ${PGPOOL_HOME}/etc/pool_passwd && \
     chmod 600 ${PGPOOL_HOME}/etc/pcp.conf
 
-# Also add this to ensure runtime permissions:
 RUN echo "chmod 600 ${PGPOOL_HOME}/etc/pcp.conf ${PGPOOL_HOME}/etc/pool_passwd" >> /entrypoint.sh
-
-COPY ./config/failover.sh ${PGPOOL_HOME}/etc/
-RUN chmod +x ${PGPOOL_HOME}/etc/failover.sh
-
 
 
 USER pgpool
