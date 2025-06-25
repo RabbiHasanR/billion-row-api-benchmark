@@ -29,3 +29,6 @@ Thumbs.db
 # Ignore backup files
 *~
 *.orig
+
+
+pgpool_credential.txt
